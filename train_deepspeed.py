@@ -363,11 +363,6 @@ while True:
         if iter_num == 0 and eval_only:
             break
         
-        # Training step
-        model_engine.zero_grad()
-        print_master("zerograd")
-        # DeepSpeed handles learning rate scheduling automatically via the configured lr_scheduler
-        
         # Forward pass - DeepSpeed handles mixed precision automatically
         logits, loss = model_engine(X, Y)
         print_master("forward pass done")        
@@ -378,7 +373,7 @@ while True:
         # Fetch next batch while model is doing backward pass
         X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
         print_master("fetched next batch")        
-        # Optimizer step
+        # Optimizer step - DeepSpeed handles zero_grad internally when gradient_accumulation_steps > 1
         model_engine.step()
         print_master("optimizer step done") 
         
