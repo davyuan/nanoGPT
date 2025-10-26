@@ -320,7 +320,7 @@ else:
 
 # Training loop
 print_master(f"Starting DeepSpeed training with ZeRO stage {ds_config['zero_optimization']['stage']}")
-
+print_master(f"split:train, data_dir:{data_dir}, block_size:{block_size}, batch_size:{batch_size}, device_type:{device_type}, device:{device}")
 X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
 t0 = time.time()
 local_iter_num = 0
@@ -329,7 +329,7 @@ checkpoint_failures = 0  # Track consecutive checkpoint failures
 
 while True:
     # Evaluation and checkpointing
-    if iter_num % eval_interval == 0 and master_process:
+    if iter_num > 0 and iter_num % eval_interval == 0 and master_process:
         losses = estimate_loss(eval_iters, model_engine, None, data_dir, block_size, batch_size, device_type, device, use_deepspeed=True)
         print_master(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         if wandb_log:
