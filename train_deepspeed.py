@@ -320,8 +320,9 @@ else:
 
 # Training loop
 print_master(f"Starting DeepSpeed training with ZeRO stage {ds_config['zero_optimization']['stage']}")
-print_master(f"split:train, data_dir:{data_dir}, block_size:{block_size}, batch_size:{batch_size}, device_type:{device_type}, device:{device}")
 X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
+print_master(f"split:train, data_dir:{data_dir}, block_size:{block_size}, batch_size:{batch_size}, device_type:{device_type}, device:{device}")
+
 t0 = time.time()
 local_iter_num = 0
 running_mfu = -1.0
