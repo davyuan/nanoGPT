@@ -21,37 +21,49 @@ import time
 import math
 import pickle
 from contextlib import nullcontext
+import warnings
+import wandb
+import traceback
+
+# Suppress specific warnings from dependencies
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+warnings.filterwarnings("ignore", message=".*UnsupportedFieldAttributeWarning.*")
+warnings.filterwarnings("ignore", message=".*The 'repr' attribute.*")
+warnings.filterwarnings("ignore", module="pydantic._internal._generate_schema")
 
 import numpy as np
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.distributed import init_process_group, destroy_process_group
-
+from torch.distributed import init_process_group, destroy_process_group, get_rank
 from model import GPTConfig, GPT
+from util import get_batch, estimate_loss, get_lr
 
 # -----------------------------------------------------------------------------
 # default config values designed to train a gpt2 (124M) on OpenWebText
 # I/O
 out_dir = 'out'
-eval_interval = 2000
+eval_interval = 1000  # More frequent evaluation for debugging
 log_interval = 1
-eval_iters = 200
+eval_iters = 50      # Reduced from 200 to make evaluation faster
 eval_only = False # if True, script exits right after the first eval
 always_save_checkpoint = True # if True, always save a checkpoint after each eval
 init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
 # wandb logging
 wandb_log = False # disabled by default
 wandb_project = 'owt'
-wandb_run_name = 'gpt2' # 'run' + str(time.time())
+wandb_run_name = 'gpt2_xl' # 'run' + str(time.time())
 # data
 dataset = 'openwebtext'
-gradient_accumulation_steps = 5 * 8 # used to simulate larger batch sizes
-batch_size = 12 # if gradient_accumulation_steps > 1, this is the micro-batch size
+# Alternative configurations for different scenarios:
+
+# Recommended for GPT-2 XL on 2x RTX 4090 with ZeRO Stage 2:
+gradient_accumulation_steps = 16  # Results in effective batch size of 321
+batch_size = 1 # if gradient_accumulation_steps > 1, this is the micro-batch size
 block_size = 1024
 # model
-n_layer = 12
-n_head = 12
-n_embd = 768
+n_layer = 48  # GPT-2 XL configuration - using DeepSpeed to handle large model
+n_head = 25   # GPT-2 XL configuration
+n_embd = 1600 # GPT-2 XL configuration
 dropout = 0.0 # for pretraining 0 is good, for finetuning try 0.1+
 bias = False # do we use bias inside LayerNorm and Linear layers?
 # adamw optimizer
@@ -104,8 +116,9 @@ print(f"tokens per iteration will be: {tokens_per_iter:,}")
 if master_process:
     os.makedirs(out_dir, exist_ok=True)
 torch.manual_seed(1337 + seed_offset)
-torch.backends.cuda.matmul.allow_tf32 = True # allow tf32 on matmul
-torch.backends.cudnn.allow_tf32 = True # allow tf32 on cudnn
+# Enable TF32 for better performance on Ampere GPUs (new API)
+torch.backends.cuda.matmul.fp32_precision = 'tf32'  # allow tf32 on matmul
+torch.backends.cudnn.conv.fp32_precision = 'tf32'   # allow tf32 on convolutions
 device_type = 'cuda' if 'cuda' in device else 'cpu' # for later use in torch.autocast
 # note: float16 data type will automatically use a GradScaler
 ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
@@ -113,22 +126,6 @@ ctx = nullcontext() if device_type == 'cpu' else torch.amp.autocast(device_type=
 
 # poor man's data loader
 data_dir = os.path.join('data', dataset)
-def get_batch(split):
-    # We recreate np.memmap every batch to avoid a memory leak, as per
-    # https://stackoverflow.com/questions/45132940/numpy-memmap-memory-usage-want-to-iterate-once/61472122#61472122
-    if split == 'train':
-        data = np.memmap(os.path.join(data_dir, 'train.bin'), dtype=np.uint16, mode='r')
-    else:
-        data = np.memmap(os.path.join(data_dir, 'val.bin'), dtype=np.uint16, mode='r')
-    ix = torch.randint(len(data) - block_size, (batch_size,))
-    x = torch.stack([torch.from_numpy((data[i:i+block_size]).astype(np.int64)) for i in ix])
-    y = torch.stack([torch.from_numpy((data[i+1:i+1+block_size]).astype(np.int64)) for i in ix])
-    if device_type == 'cuda':
-        # pin arrays x,y, which allows us to move them to GPU asynchronously (non_blocking=True)
-        x, y = x.pin_memory().to(device, non_blocking=True), y.pin_memory().to(device, non_blocking=True)
-    else:
-        x, y = x.to(device), y.to(device)
-    return x, y
 
 # init these up here, can override if init_from='resume' (i.e. from a checkpoint)
 iter_num = 0
@@ -193,7 +190,7 @@ if block_size < model.config.block_size:
 model.to(device)
 
 # initialize a GradScaler. If enabled=False scaler is a no-op
-scaler = torch.cuda.amp.GradScaler(enabled=(dtype == 'float16'))
+scaler = torch.amp.GradScaler('cuda', enabled=(dtype == 'float16'))
 
 # optimizer
 optimizer = model.configure_optimizers(weight_decay, learning_rate, (beta1, beta2), device_type)
@@ -211,43 +208,13 @@ if compile:
 if ddp:
     model = DDP(model, device_ids=[ddp_local_rank])
 
-# helps estimate an arbitrarily accurate loss over either split using many batches
-@torch.no_grad()
-def estimate_loss():
-    out = {}
-    model.eval()
-    for split in ['train', 'val']:
-        losses = torch.zeros(eval_iters)
-        for k in range(eval_iters):
-            X, Y = get_batch(split)
-            with ctx:
-                logits, loss = model(X, Y)
-            losses[k] = loss.item()
-        out[split] = losses.mean()
-    model.train()
-    return out
-
 # learning rate decay scheduler (cosine with warmup)
-def get_lr(it):
-    # 1) linear warmup for warmup_iters steps
-    if it < warmup_iters:
-        return learning_rate * (it + 1) / (warmup_iters + 1)
-    # 2) if it > lr_decay_iters, return min learning rate
-    if it > lr_decay_iters:
-        return min_lr
-    # 3) in between, use cosine decay down to min learning rate
-    decay_ratio = (it - warmup_iters) / (lr_decay_iters - warmup_iters)
-    assert 0 <= decay_ratio <= 1
-    coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio)) # coeff ranges 0..1
-    return min_lr + coeff * (learning_rate - min_lr)
-
 # logging
 if wandb_log and master_process:
-    import wandb
     wandb.init(project=wandb_project, name=wandb_run_name, config=config)
 
 # training loop
-X, Y = get_batch('train') # fetch the very first batch
+X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device) # fetch the very first batch
 t0 = time.time()
 local_iter_num = 0 # number of iterations in the lifetime of this process
 raw_model = model.module if ddp else model # unwrap DDP container if needed
@@ -255,13 +222,13 @@ running_mfu = -1.0
 while True:
 
     # determine and set the learning rate for this iteration
-    lr = get_lr(iter_num) if decay_lr else learning_rate
+    lr = get_lr(iter_num, warmup_iters, learning_rate, lr_decay_iters, min_lr) if decay_lr else learning_rate
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
     # evaluate the loss on train/val sets and write checkpoints
     if iter_num % eval_interval == 0 and master_process:
-        losses = estimate_loss()
+        losses = estimate_loss(eval_iters, model, ctx, data_dir, block_size, batch_size, device_type, device)
         print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         if wandb_log:
             wandb.log({
@@ -300,7 +267,7 @@ while True:
             logits, loss = model(X, Y)
             loss = loss / gradient_accumulation_steps # scale the loss to account for gradient accumulation
         # immediately async prefetch next batch while model is doing the forward pass on the GPU
-        X, Y = get_batch('train')
+        X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
         # backward pass, with gradient scaling if training in fp16
         scaler.scale(loss).backward()
     # clip the gradient

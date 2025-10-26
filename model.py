@@ -298,7 +298,20 @@ class GPT(nn.Module):
         flops_per_iter = flops_per_fwdbwd * fwdbwd_per_iter
         # express our flops throughput as ratio of A100 bfloat16 peak flops
         flops_achieved = flops_per_iter * (1.0/dt) # per second
-        flops_promised = 312e12 # A100 GPU bfloat16 peak flops is 312 TFLOPS
+        
+        # Auto-detect GPU type for more accurate MFU calculation
+        gpu_name = torch.cuda.get_device_name() if torch.cuda.is_available() else "unknown"
+        if "4090" in gpu_name or "RTX 4090" in gpu_name:
+            flops_promised = 165e12  # RTX 4090 bfloat16 peak ~165 TFLOPS
+        elif "A100" in gpu_name:
+            flops_promised = 312e12  # A100 GPU bfloat16 peak flops is 312 TFLOPS
+        elif "V100" in gpu_name:
+            flops_promised = 125e12  # V100 peak ~125 TFLOPS
+        elif "3090" in gpu_name or "RTX 3090" in gpu_name:
+            flops_promised = 142e12  # RTX 3090 peak ~142 TFLOPS
+        else:
+            flops_promised = 312e12  # Default to A100 for unknown GPUs
+            
         mfu = flops_achieved / flops_promised
         return mfu
 
