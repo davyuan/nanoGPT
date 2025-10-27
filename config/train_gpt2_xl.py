@@ -1,21 +1,23 @@
-# config for training GPT-2 (124M) down to very nice loss of ~2.85 on 1 node of 8X A100 40GB
+# config for training GPT-2 XL with DeepSpeed low memory optimization
+# Optimized for RTX 4090 GPUs with minimal memory usage
 # launch as the following (e.g. in a screen session) and wait ~5 days:
-# $ torchrun --standalone --nproc_per_node=8 train.py config/train_gpt2.py
+# $ deepspeed --num_gpus=2 train_deepspeed.py config/train_gpt2_xl.py
 
 wandb_log = False
 wandb_project = 'owt'
-wandb_run_name='gpt2-1558M'
+wandb_run_name='gpt2-xl-lowmem'
 
-# these make the total batch size be ~0.5M
-# 12 batch size * 1024 block size * 5 gradaccum * 8 GPUs = 491,520
-batch_size = 1
+# Memory-optimized batch settings for low VRAM consumption
+# Micro batch size is fixed to 1 in deepspeed_config_lowmem.json
+# Gradient accumulation compensates for small micro batch
+batch_size = 1  # This will be overridden by DeepSpeed config
 block_size = 1024
-gradient_accumulation_steps = 4
+gradient_accumulation_steps = 8  # Increased for memory efficiency
 
-# eval stuff
-eval_interval = 30
-eval_iters = 20
+# eval stuff - less frequent for low memory training
+eval_interval = 1000  # Less frequent evaluation to save memory
+eval_iters = 50
 log_interval = 10
 
-#deepspeed config file path
-deepspeed_config_path = 'deepspeed_config_stage1.json' # path to DeepSpeed configuration file
+# DeepSpeed low memory config for minimal GPU memory usage
+deepspeed_config_path = 'deepspeed_config_lowmem.json'
