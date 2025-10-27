@@ -18,4 +18,4 @@ eval_iters = 20
 log_interval = 10
 
 #deepspeed config file path
-deepspeed_config_path = 'deepspeed_config_lowmem.json' # path to DeepSpeed configuration file
+deepspeed_config_path = 'deepspeed_config.json' # path to DeepSpeed configuration file

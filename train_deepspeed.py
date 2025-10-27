@@ -284,7 +284,8 @@ print_master(f"DeepSpeed config loaded with ZeRO stage {ds_config['zero_optimiza
 model_engine, optimizer, _, lr_scheduler = deepspeed.initialize(
     args=None,
     model=model,
-    config=ds_config
+    config=ds_config,
+    dist_init_required=True
 )
 
 # Load DeepSpeed checkpoint if resuming
