@@ -364,44 +364,44 @@ while True:
         if iter_num == 0 and eval_only:
             break
         
-        # Forward pass - DeepSpeed handles mixed precision automatically
-        logits, loss = model_engine(X, Y)
-        print_master("forward pass done")        
-        # Backward pass - DeepSpeed handles gradient accumulation internally
-        model_engine.backward(loss)
-        print_master("backward pass done")
+    # Forward pass - DeepSpeed handles mixed precision automatically
+    logits, loss = model_engine(X, Y)
+    print_master("forward pass done")        
+    # Backward pass - DeepSpeed handles gradient accumulation internally
+    model_engine.backward(loss)
+    print_master("backward pass done")
 
-        # Fetch next batch while model is doing backward pass
-        X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
-        print_master("fetched next batch")        
-        # Optimizer step - DeepSpeed handles zero_grad internally when gradient_accumulation_steps > 1
-        model_engine.step()
-        print_master("optimizer step done") 
+    # Fetch next batch while model is doing backward pass
+    X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
+    print_master("fetched next batch")        
+    # Optimizer step - DeepSpeed handles zero_grad internally when gradient_accumulation_steps > 1
+    model_engine.step()
+    print_master("optimizer step done") 
+    
+    # Timing and logging
+    t1 = time.time()
+    dt = t1 - t0
+    t0 = t1
+    
+    if iter_num % log_interval == 0 and master_process:
+        lossf = loss.item()
+        if local_iter_num >= 5:
+            # For DeepSpeed, we need to get the raw model for MFU calculation
+            raw_model = model_engine.module
+            mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
+            running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
         
-        # Timing and logging
-        t1 = time.time()
-        dt = t1 - t0
-        t0 = t1
+        # Get current learning rate for logging - handle scheduler not ready
+        try:
+            current_lr = model_engine.get_lr()[0]
+        except (IndexError, AttributeError, RuntimeError):
+            current_lr = model_engine.optimizer.param_groups[0]['lr']
         
-        if iter_num % log_interval == 0 and master_process:
-            lossf = loss.item()
-            if local_iter_num >= 5:
-                # For DeepSpeed, we need to get the raw model for MFU calculation
-                raw_model = model_engine.module
-                mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
-                running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
-            
-            # Get current learning rate for logging - handle scheduler not ready
-            try:
-                current_lr = model_engine.get_lr()[0]
-            except (IndexError, AttributeError, RuntimeError):
-                current_lr = model_engine.optimizer.param_groups[0]['lr']
-            
-            print_master(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%, lr {current_lr:.2e}")
-        
-        iter_num += 1
-        local_iter_num += 1
-        
-        if iter_num > max_iters:
-            break
+        print_master(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%, lr {current_lr:.2e}")
+    
+    iter_num += 1
+    local_iter_num += 1
+    
+    if iter_num > max_iters:
+        break
     
