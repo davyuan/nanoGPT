@@ -10,7 +10,7 @@ wandb_run_name='gpt2-1558M'
 # 12 batch size * 1024 block size * 5 gradaccum * 8 GPUs = 491,520
 batch_size = 1
 block_size = 1024
-gradient_accumulation_steps = 16
+gradient_accumulation_steps = 4
 
 # eval stuff
 eval_interval = 30
