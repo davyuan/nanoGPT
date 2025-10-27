@@ -288,6 +288,17 @@ model_engine, optimizer, _, lr_scheduler = deepspeed.initialize(
     dist_init_required=True
 )
 
+# Debug: Check if scheduler was initialized
+if lr_scheduler is not None:
+    print_master(f"Scheduler initialized: {type(lr_scheduler).__name__}")
+    # Check if it has get_last_lr method
+    if hasattr(lr_scheduler, 'get_last_lr'):
+        print_master("Scheduler has get_last_lr() method")
+    else:
+        print_master("Scheduler does NOT have get_last_lr() method")
+else:
+    print_master("Warning: No scheduler initialized by DeepSpeed")
+
 # Load DeepSpeed checkpoint if resuming
 if init_from == 'resume':
     try:
@@ -334,10 +345,25 @@ while True:
         losses = estimate_loss(eval_iters, model_engine, None, data_dir, block_size, batch_size, device_type, device, use_deepspeed=True)
         print_master(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         if wandb_log:
-            # Get learning rate safely - fallback to optimizer LR if scheduler not ready
-            try:
-                current_lr = model_engine.get_lr()[0]
-            except (IndexError, AttributeError):
+            # Get learning rate safely - try scheduler first, then fallbacks
+            current_lr = None
+            
+            # First try the scheduler's get_last_lr() method (most direct approach)
+            if lr_scheduler is not None:
+                try:
+                    current_lr = lr_scheduler.get_last_lr()[0]
+                except (AttributeError, IndexError, TypeError):
+                    pass
+            
+            # Fallback to model_engine.get_lr()
+            if current_lr is None:
+                try:
+                    current_lr = model_engine.get_lr()[0]
+                except (IndexError, AttributeError, RuntimeError):
+                    pass
+            
+            # Final fallback to optimizer LR
+            if current_lr is None:
                 current_lr = model_engine.optimizer.param_groups[0]['lr']
             
             wandb.log({
@@ -390,13 +416,32 @@ while True:
             mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
             running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
         
-        # Get current learning rate for logging - handle scheduler not ready
-        try:
-            current_lr = model_engine.get_lr()[0]
-        except (IndexError, AttributeError, RuntimeError):
-            current_lr = model_engine.optimizer.param_groups[0]['lr']
+        # Get current learning rate for logging - try scheduler first, then fallbacks
+        current_lr = None
+        lr_source = "unknown"
         
-        print_master(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%, lr {current_lr:.2e}")
+        # First try the scheduler's get_last_lr() method (most direct approach)
+        if lr_scheduler is not None:
+            try:
+                current_lr = lr_scheduler.get_last_lr()[0]
+                lr_source = "scheduler"
+            except (AttributeError, IndexError, TypeError):
+                pass
+        
+        # Fallback to model_engine.get_lr()
+        if current_lr is None:
+            try:
+                current_lr = model_engine.get_lr()[0]
+                lr_source = "model_engine"
+            except (IndexError, AttributeError, RuntimeError):
+                pass
+        
+        # Final fallback to optimizer LR
+        if current_lr is None:
+            current_lr = model_engine.optimizer.param_groups[0]['lr']
+            lr_source = "optimizer"
+        
+        print_master(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%, lr {current_lr:.2e} ({lr_source})")
     
     iter_num += 1
     local_iter_num += 1
