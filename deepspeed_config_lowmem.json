@@ -21,7 +21,7 @@
         }
     },
     "zero_optimization": {
-        "stage": 3,
+        "stage": 2,
         "reduce_scatter": true,
         "reduce_bucket_size": 50000000,
         "allgather_bucket_size": 50000000,
@@ -32,19 +32,7 @@
             "pin_memory": true,
             "buffer_count": 4,
             "fast_init": false
-        },
-        "offload_param": {
-            "device": "cpu",
-            "pin_memory": true,
-            "buffer_count": 5,
-            "buffer_size": 250000000,
-            "max_in_cpu": 500000000
-        },
-        "stage3_prefetch_bucket_size": 25000000,
-        "stage3_param_persistence_threshold": 50000,
-        "stage3_max_live_parameters": 500000,
-        "stage3_max_reuse_distance": 500000,
-        "stage3_gather_16bit_weights_on_model_save": false
+        }
     },
     "gradient_clipping": 1.0,
     "fp16": {
