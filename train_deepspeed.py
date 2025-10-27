@@ -366,17 +366,13 @@ while True:
         
     # Forward pass - DeepSpeed handles mixed precision automatically
     logits, loss = model_engine(X, Y)
-    print_master("forward pass done")        
     # Backward pass - DeepSpeed handles gradient accumulation internally
     model_engine.backward(loss)
-    print_master("backward pass done")
 
     # Fetch next batch while model is doing backward pass
     X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
-    print_master("fetched next batch")        
     # Optimizer step - DeepSpeed handles zero_grad internally when gradient_accumulation_steps > 1
     model_engine.step()
-    print_master("optimizer step done") 
     
     # Timing and logging
     t1 = time.time()

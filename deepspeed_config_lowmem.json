@@ -62,5 +62,5 @@
         "profile": false
     },
     "wall_clock_breakdown": false,
-    "steps_per_print": 100
+    "steps_per_print": 10000
 }
