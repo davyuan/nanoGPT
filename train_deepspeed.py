@@ -322,7 +322,6 @@ else:
 # Training loop
 print_master(f"Starting DeepSpeed training with ZeRO stage {ds_config['zero_optimization']['stage']}")
 X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
-print_master(f"split:train, data_dir:{data_dir}, block_size:{block_size}, batch_size:{batch_size}, device_type:{device_type}, device:{device}")
 
 t0 = time.time()
 local_iter_num = 0
@@ -373,6 +372,10 @@ while True:
     X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
     # Optimizer step - DeepSpeed handles zero_grad internally when gradient_accumulation_steps > 1
     model_engine.step()
+    
+    # Memory management: Synchronize cache flushes across all ranks to reduce memory pressure
+    if iter_num % 100 == 0:  # Flush every 100 steps to balance performance vs memory
+        deepspeed.get_accelerator().empty_cache()
     
     # Timing and logging
     t1 = time.time()
