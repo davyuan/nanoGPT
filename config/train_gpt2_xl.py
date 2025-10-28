@@ -10,9 +10,9 @@ wandb_run_name='gpt2-xl-lowmem'
 # Memory-optimized batch settings for low VRAM consumption
 # Micro batch size is fixed to 1 in deepspeed_config_lowmem.json
 # Gradient accumulation compensates for small micro batch
-batch_size = 4  # This will be overridden by DeepSpeed config
+batch_size = 2  # This will be overridden by DeepSpeed config
 block_size = 1024
-gradient_accumulation_steps = 4  # Increased for better memory efficiency  
+gradient_accumulation_steps = 8  # Increased for better memory efficiency  
 
 # eval stuff - less frequent for low memory training
 eval_interval = 50  # Less frequent evaluation to save memory
