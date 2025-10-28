@@ -14,10 +14,11 @@
     "lr_scheduler": {
         "type": "WarmupCosineLR",
         "params": {
-        "cos_min_ratio": 6e-5,
-        "warmup_min_ratio": 6e-5,
-        "warmup_num_steps": 2000,
-        "total_num_steps": 600000
+            "cos_min_ratio": 6e-5,
+            "warmup_min_ratio": 6e-5,
+            "warmup_num_steps": 2000,
+            "warmup_type": "linear",
+            "total_num_steps": 600000
         }
     },
     "zero_optimization": {
