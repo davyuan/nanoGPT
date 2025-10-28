@@ -12,7 +12,7 @@ wandb_run_name='gpt2-xl-lowmem'
 # Gradient accumulation compensates for small micro batch
 batch_size = 1  # This will be overridden by DeepSpeed config
 block_size = 1024
-gradient_accumulation_steps = 16  # Increased for better memory efficiency  
+gradient_accumulation_steps = 32  # Increased for better memory efficiency  
 
 # eval stuff - less frequent for low memory training
 eval_interval = 50  # Less frequent evaluation to save memory
