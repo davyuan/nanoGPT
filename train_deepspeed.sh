@@ -55,6 +55,7 @@ export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:128  #
 export CUDA_LAUNCH_BLOCKING=0       # Async launches for performance
 export NCCL_MIN_NRINGS=2            # Allow multiple rings for better bandwidth utilization
 export NCCL_MAX_NRINGS=4            # Maximum rings for optimal performance
+export CUBLAS_WORKSPACE_CONFIG=:4096:8 #This constrains cuBLAS’s internal workspace size, preventing over-allocation.
 
 echo ""
 echo -e "\033[32mRunning DeepSpeed training...\033[0m"
