@@ -23,6 +23,10 @@
             "pin_memory": true,
             "buffer_count": 4,
             "fast_init": false
+        },
+        "offload_param": {
+            "device": "cpu",
+            "pin_memory": true
         }
     },
     "gradient_clipping": 1.0,
