@@ -20,4 +20,4 @@ eval_iters = 50
 log_interval = 10
 
 # DeepSpeed low memory config for minimal GPU memory usage
-deepspeed_config_path = 'deepspeed_config_stage1.json'
+deepspeed_config_path = 'deepspeed_config_lowmem.json'
