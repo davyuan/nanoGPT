@@ -14,19 +14,19 @@
   "zero_optimization": {
     "stage": 2,
     "reduce_scatter": true,
-    "reduce_bucket_size": 10000000,
-    "allgather_bucket_size": 10000000,
+    "reduce_bucket_size": 5000000,
+    "allgather_bucket_size": 5000000,
     "overlap_comm": false,
     "contiguous_gradients": false,
     "offload_optimizer": {
       "device": "cpu",
       "pin_memory": true,
       "buffer_count": 1,
-      "fast_init": false
+      "fast_init": true
     },
     "offload_param": {
       "device": "cpu",
-      "pin_memory": true
+      "pin_memory": false
     }
   },
   "gradient_clipping": 1.0,
@@ -41,11 +41,5 @@
     "profile": false
   },
   "wall_clock_breakdown": false,
-  "steps_per_print": 10000,
-  "comms_logger": {
-    "enabled": false,
-    "verbose": false,
-    "prof_all": false,
-    "debug": false
-  }
+  "steps_per_print": 10000
 }
