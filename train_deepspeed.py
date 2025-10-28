@@ -35,6 +35,14 @@ from torch.distributed import init_process_group, destroy_process_group, get_ran
 from model import GPTConfig, GPT
 from util import get_batch, estimate_loss, get_lr
 
+# Clear GPU memory before training
+try:
+    from clear_memory import clear_gpu_memory, optimize_memory_settings
+    clear_gpu_memory()
+    optimize_memory_settings()
+except ImportError:
+    print("Memory clearing script not found, proceeding without memory optimization...")
+
 # DeepSpeed imports
 try:
     import deepspeed
