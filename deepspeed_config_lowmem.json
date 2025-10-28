@@ -1,7 +1,7 @@
 {
   "train_batch_size": 32,
   "train_micro_batch_size_per_gpu": 1,
-  "gradient_accumulation_steps": 16,
+  "gradient_accumulation_steps": 24,
   "optimizer": {
     "type": "AdamW",
     "params": {
@@ -14,8 +14,8 @@
   "zero_optimization": {
     "stage": 2,
     "reduce_scatter": true,
-    "reduce_bucket_size": 5000000,
-    "allgather_bucket_size": 5000000,
+    "reduce_bucket_size": 25000000,
+    "allgather_bucket_size": 25000000,
     "overlap_comm": false,
     "contiguous_gradients": false,
     "offload_optimizer": {
