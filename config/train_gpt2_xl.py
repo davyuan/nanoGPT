@@ -7,6 +7,13 @@ wandb_log = False
 wandb_project = 'owt'
 wandb_run_name='gpt2-xl-lowmem'
 
+# model
+n_layer = 48  # GPT-2 XL configuration - using DeepSpeed to handle large model
+n_head = 25   # GPT-2 XL configuration
+n_embd = 1600 # GPT-2 XL configuration
+dropout = 0.0 # for pretraining 0 is good, for finetuning try 0.1+
+bias = False # do we use bias inside LayerNorm and Linear layers?
+
 # Memory-optimized batch settings for low VRAM consumption
 # Micro batch size is fixed to 1 in deepspeed_config_lowmem.json
 # Gradient accumulation compensates for small micro batch

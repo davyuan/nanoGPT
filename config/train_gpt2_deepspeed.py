@@ -37,7 +37,7 @@ lr_decay_iters = 600000
 min_lr = 6e-5
 
 # Evaluation
-eval_interval = 1000
+eval_interval = 2000
 eval_iters = 200
 log_interval = 1
 eval_only = False
