@@ -416,32 +416,8 @@ while True:
             mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
             running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
         
-        # Get current learning rate for logging - try scheduler first, then fallbacks
-        current_lr = None
-        lr_source = "unknown"
-        
-        # First try the scheduler's get_last_lr() method (most direct approach)
-        if lr_scheduler is not None:
-            try:
-                current_lr = lr_scheduler.get_last_lr()[0]
-                lr_source = "scheduler"
-            except (AttributeError, IndexError, TypeError):
-                pass
-        
-        # Fallback to model_engine.get_lr()
-        if current_lr is None:
-            try:
-                current_lr = model_engine.get_lr()[0]
-                lr_source = "model_engine"
-            except (IndexError, AttributeError, RuntimeError):
-                pass
-        
-        # Final fallback to optimizer LR
-        if current_lr is None:
-            current_lr = model_engine.optimizer.param_groups[0]['lr']
-            lr_source = "optimizer"
-        
-        print_master(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%, lr {current_lr:.2e} ({lr_source})")
+        current_lr = model_engine.get_lr()[0]
+        print_master(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%, lr {current_lr:.2e}")
     
     iter_num += 1
     local_iter_num += 1
