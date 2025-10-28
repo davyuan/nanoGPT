@@ -51,7 +51,7 @@ eval_interval = 1000  # More frequent evaluation for debugging
 log_interval = 1
 eval_iters = 50      # Reduced from 200 to make evaluation faster
 eval_only = False # if True, script exits right after the first eval
-always_save_checkpoint = True # if True, always save a checkpoint after each eval
+always_save_checkpoint = False # if True, always save a checkpoint after each eval
 init_from = 'resume' # 'scratch' or 'resume' or 'gpt2*'
 # wandb logging
 wandb_log = False # disabled by default
@@ -389,13 +389,6 @@ while True:
 
     # Optimizer step - DeepSpeed handles zero_grad internally when gradient_accumulation_steps > 1
     model_engine.step()
-    
-    # Memory management: More aggressive cache clearing for low memory training
-    if iter_num % 50 == 0:  # Flush every 50 steps to reduce memory pressure
-        deepspeed.get_accelerator().empty_cache()
-        # Force garbage collection
-        import gc
-        gc.collect()
     
     # Timing and logging
     t1 = time.time()
