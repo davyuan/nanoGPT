@@ -63,7 +63,7 @@ python3 clear_memory.py
 echo ""
 echo -e "\033[32mRunning DeepSpeed training...\033[0m"
 echo -e "\033[36mConfiguration:\033[0m"
-echo -e "\033[37m- ZeRO Stage: 2 (Optimizer + Gradient Sharding - Balanced Performance)\033[0m"
+echo -e "\033[37m- ZeRO Stage: 3 (Parameter + Optimizer + Gradient Sharding - Maximum Memory Savings)\033[0m"
 echo -e "\033[37m- Compilation: Disabled (incompatible with DeepSpeed ZeRO)\033[0m"
 echo -e "\033[37m- Checkpoints: ./out_deepspeed\033[0m"
 echo -e "\033[37m- Script: train_deepspeed.py\033[0m"

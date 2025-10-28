@@ -339,6 +339,12 @@ print_master(f"- Model Parameters: {sum(p.numel() for p in model.parameters() if
 print_master(f"- LR Scheduling: Manual calculation (DeepSpeed scheduler disabled)")
 print_master(f"- Warmup: {warmup_iters} steps from {min_lr:.2e} to {learning_rate:.2e}")
 
+# Print initial memory usage
+if torch.cuda.is_available():
+    mem_allocated = torch.cuda.memory_allocated(device) / 1024**3
+    mem_reserved = torch.cuda.memory_reserved(device) / 1024**3
+    print_master(f"- Initial GPU Memory: {mem_allocated:.2f}GB allocated, {mem_reserved:.2f}GB reserved")
+
 # Check if model is properly sharded
 if hasattr(model_engine, 'module'):
     print_master(f"- Model is wrapped in DDP-like container")
@@ -346,7 +352,7 @@ else:
     print_master(f"- Model is not wrapped")
 
 # Training loop
-print_master(f"Starting DeepSpeed training with ZeRO stage {ds_config['zero_optimization']['stage']}")
+print_master(f"Starting DeepSpeed training with ZeRO stage {ds_config['zero_optimization']['stage']} (maximum memory efficiency)")
 X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
 
 t0 = time.time()
@@ -406,9 +412,12 @@ while True:
     # Optimizer step - DeepSpeed handles zero_grad internally when gradient_accumulation_steps > 1
     model_engine.step()
     
-    # Memory management: Synchronize cache flushes across all ranks to reduce memory pressure
-    if iter_num % 100 == 0:  # Flush every 100 steps to balance performance vs memory
+    # Memory management: More aggressive cache clearing for low memory training
+    if iter_num % 50 == 0:  # Flush every 50 steps to reduce memory pressure
         deepspeed.get_accelerator().empty_cache()
+        # Force garbage collection
+        import gc
+        gc.collect()
     
     # Timing and logging
     t1 = time.time()
