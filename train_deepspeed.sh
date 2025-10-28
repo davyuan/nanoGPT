@@ -51,14 +51,10 @@ export NCCL_DEBUG=WARN              # Reduce debug verbosity
 export NCCL_TIMEOUT=1800            # 30 minute timeout (reasonable for training)
 export TORCH_NCCL_BLOCKING_WAIT=0   # Non-blocking wait for better performance
 export TORCH_DISTRIBUTED_DEBUG=OFF  # Reduce distributed training debug output
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:128,garbage_collection_threshold:0.8  # Better memory management
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:128  # Better memory management
 export CUDA_LAUNCH_BLOCKING=0       # Async launches for performance
 export NCCL_MIN_NRINGS=2            # Allow multiple rings for better bandwidth utilization
 export NCCL_MAX_NRINGS=4            # Maximum rings for optimal performance
-
-echo ""
-echo -e "\033[32mClearing GPU memory before training...\033[0m"
-python3 clear_memory.py
 
 echo ""
 echo -e "\033[32mRunning DeepSpeed training...\033[0m"
