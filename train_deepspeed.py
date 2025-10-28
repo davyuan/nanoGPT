@@ -33,7 +33,7 @@ import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group, get_rank
 from model import GPTConfig, GPT
-from util import get_batch, estimate_loss
+from util import get_batch, estimate_loss, get_lr
 
 # DeepSpeed imports
 try:
@@ -75,6 +75,7 @@ bias = False # do we use bias inside LayerNorm and Linear layers?
 learning_rate = 6e-4 # max learning rate
 max_iters = 600000 # total number of training iterations
 weight_decay = 1e-1
+decay_lr = True # whether to decay the learning rate
 beta1 = 0.9
 beta2 = 0.95
 grad_clip = 1.0 # clip gradients at this value, or disable if == 0.0
@@ -171,7 +172,11 @@ def load_deepspeed_config():
             scheduler_params["warmup_num_steps"] = warmup_iters
         if scheduler_params.get("total_num_steps") == "auto":
             scheduler_params["total_num_steps"] = max_iters
-    
+        if scheduler_params.get("cos_min_ratio") == "auto":
+            scheduler_params["cos_min_ratio"] = min_lr            
+        if scheduler_params.get("cos_min_ratio") == "auto":
+            scheduler_params["cos_min_ratio"] = min_lr
+   
     # Enable fp16 or bf16 based on dtype
     if "fp16" in ds_config and ds_config["fp16"].get("enabled") == "auto":
         ds_config["fp16"]["enabled"] = (dtype == 'float16')
@@ -288,16 +293,12 @@ model_engine, optimizer, _, lr_scheduler = deepspeed.initialize(
     dist_init_required=True
 )
 
-# Debug: Check if scheduler was initialized
+# Debug: Check if scheduler was initialized (using manual LR calculation)
 if lr_scheduler is not None:
-    print_master(f"Scheduler initialized: {type(lr_scheduler).__name__}")
-    # Check if it has get_last_lr method
-    if hasattr(lr_scheduler, 'get_last_lr'):
-        print_master("Scheduler has get_last_lr() method")
-    else:
-        print_master("Scheduler does NOT have get_last_lr() method")
+    print_master(f"DeepSpeed scheduler initialized but disabled: {type(lr_scheduler).__name__}")
+    print_master("Using manual LR calculation instead")
 else:
-    print_master("Warning: No scheduler initialized by DeepSpeed")
+    print_master("No DeepSpeed scheduler (using manual LR calculation)")
 
 # Load DeepSpeed checkpoint if resuming
 if init_from == 'resume':
@@ -323,6 +324,8 @@ print_master(f"- World Size: {world_size}")
 print_master(f"- Local Rank: {local_rank}")
 print_master(f"- Device: {device}")
 print_master(f"- Model Parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
+print_master(f"- LR Scheduling: Manual calculation (DeepSpeed scheduler disabled)")
+print_master(f"- Warmup: {warmup_iters} steps from {min_lr:.2e} to {learning_rate:.2e}")
 
 # Check if model is properly sharded
 if hasattr(model_engine, 'module'):
@@ -340,37 +343,22 @@ running_mfu = -1.0
 checkpoint_failures = 0  # Track consecutive checkpoint failures
 
 while True:
+    # determine and set the learning rate for this iteration
+    lr = get_lr(iter_num, warmup_iters, learning_rate, lr_decay_iters, min_lr) if decay_lr else learning_rate    
+    # Apply the calculated learning rate to all parameter groups (like original train.py)
+    for param_group in model_engine.optimizer.param_groups:
+        param_group['lr'] = lr
+    
     # Evaluation and checkpointing
     if iter_num > 0 and iter_num % eval_interval == 0 and master_process:
         losses = estimate_loss(eval_iters, model_engine, None, data_dir, block_size, batch_size, device_type, device, use_deepspeed=True)
         print_master(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
         if wandb_log:
-            # Get learning rate safely - try scheduler first, then fallbacks
-            current_lr = None
-            
-            # First try the scheduler's get_last_lr() method (most direct approach)
-            if lr_scheduler is not None:
-                try:
-                    current_lr = lr_scheduler.get_last_lr()[0]
-                except (AttributeError, IndexError, TypeError):
-                    pass
-            
-            # Fallback to model_engine.get_lr()
-            if current_lr is None:
-                try:
-                    current_lr = model_engine.get_lr()[0]
-                except (IndexError, AttributeError, RuntimeError):
-                    pass
-            
-            # Final fallback to optimizer LR
-            if current_lr is None:
-                current_lr = model_engine.optimizer.param_groups[0]['lr']
-            
             wandb.log({
                 "iter": iter_num,
                 "train/loss": losses['train'],
                 "val/loss": losses['val'],
-                "lr": current_lr,
+                "lr": lr,
                 "mfu": running_mfu*100,
             })
         if losses['val'] < best_val_loss or always_save_checkpoint:
@@ -396,6 +384,7 @@ while True:
 
     # Fetch next batch while model is doing backward pass
     X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
+
     # Optimizer step - DeepSpeed handles zero_grad internally when gradient_accumulation_steps > 1
     model_engine.step()
     
@@ -415,10 +404,9 @@ while True:
             raw_model = model_engine.module
             mfu = raw_model.estimate_mfu(batch_size * gradient_accumulation_steps, dt)
             running_mfu = mfu if running_mfu == -1.0 else 0.9*running_mfu + 0.1*mfu
-        
-        current_lr = model_engine.get_lr()[0]
-        print_master(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%, lr {current_lr:.2e}")
-    
+
+        print_master(f"iter {iter_num}: loss {lossf:.4f}, time {dt*1000:.2f}ms, mfu {running_mfu*100:.2f}%, lr {lr:.2e}")
+
     iter_num += 1
     local_iter_num += 1
     

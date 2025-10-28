@@ -20,6 +20,10 @@ n_embd = 768 # GPT-2  configuration
 # this makes total number of tokens be 300B
 max_iters = 600000
 lr_decay_iters = 600000
+decay_lr = True # whether to decay the learning rate
+min_lr = 6e-5 # minimum learning rate, should be ~= learning_rate/10 per Chinchilla
+learning_rate = 6e-4 # max learning rate
+warmup_iters = 2000 # 2k iters for warmup
 
 # eval stuff
 eval_interval = 1000
