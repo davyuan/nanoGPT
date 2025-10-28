@@ -190,10 +190,13 @@ if not DEEPSPEED_AVAILABLE:
     print("Error: DeepSpeed is required but not installed. Install with: pip install deepspeed")
     exit(1)
 
+# Clear CUDA cache and set backend options
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.benchmark = False
+torch.cuda.empty_cache()
+
 # Initialize DeepSpeed distributed training
 deepspeed.init_distributed(dist_backend='nccl')
-
-# Import all global variables that may have been updated by configurator.py
 
 # Set up data directory (needed for model initialization)
 data_dir = os.path.join('data', dataset)
