@@ -350,10 +350,10 @@ while True:
         param_group['lr'] = lr
     
     # Evaluation and checkpointing
-    if iter_num > 0 and iter_num % eval_interval == 0 and master_process:
+    if iter_num % eval_interval == 0:
         losses = estimate_loss(eval_iters, model_engine, None, data_dir, block_size, batch_size, device_type, device, use_deepspeed=True)
         print_master(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
-        if wandb_log:
+        if wandb_log and master_process:
             wandb.log({
                 "iter": iter_num,
                 "train/loss": losses['train'],
@@ -371,7 +371,7 @@ while True:
                     'config': config
                 }
                 print_master("Calling save_checkpoint with client_state...")                            
-                model_engine.save_checkpoint(deepspeed_out_dir)
+                model_engine.save_checkpoint(save_dir=deepspeed_out_dir, client_state=client_state)
                 print_master("checkpoint save succeeded")
         
         if iter_num == 0 and eval_only:
