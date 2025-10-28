@@ -68,7 +68,8 @@ echo ""
 # Run with DeepSpeed on 2 GPUs (config loaded from deepspeed_config.json)
 if [ -n "$CONFIG_FILE" ]; then
     # Run with config file
-    deepspeed --num_gpus=2 train_deepspeed.py --no_cuda_graph "$CONFIG_FILE"
+    deepspeed --num_gpus=2 train_deepspeed.py "$CONFIG_FILE" \
+        --no_cuda_graph
 else
     # Run with default parameters (memory optimized)
     deepspeed --num_gpus=2 train_deepspeed.py \
