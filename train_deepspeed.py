@@ -20,20 +20,16 @@ import warnings
 import wandb
 import traceback
 import json
-    
-
-# Suppress specific warnings from dependencies
-warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
-warnings.filterwarnings("ignore", message=".*UnsupportedFieldAttributeWarning.*")
-warnings.filterwarnings("ignore", message=".*The 'repr' attribute.*")
-warnings.filterwarnings("ignore", module="pydantic._internal._generate_schema")
-
 import numpy as np
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group, get_rank
 from model import GPTConfig, GPT
 from util import get_batch, estimate_loss, get_lr
+
+# Suppress specific warnings from dependencies
+from pydantic.warnings import UnsupportedFieldAttributeWarning
+warnings.filterwarnings("ignore", category=UnsupportedFieldAttributeWarning)
 
 # DeepSpeed imports
 try:
