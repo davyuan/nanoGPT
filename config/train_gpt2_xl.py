@@ -15,8 +15,8 @@ block_size = 1024
 gradient_accumulation_steps = 4  
 
 # eval stuff - less frequent for low memory training
-eval_interval = 1000  # Less frequent evaluation to save memory
-eval_iters = 50
+eval_interval = 20  # Less frequent evaluation to save memory
+eval_iters = 10
 log_interval = 10
 
 # DeepSpeed low memory config for minimal GPU memory usage
