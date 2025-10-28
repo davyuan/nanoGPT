@@ -22,7 +22,7 @@ block_size = 1024
 gradient_accumulation_steps = 8  # Increased for better memory efficiency  
 
 # eval stuff - less frequent for low memory training
-eval_interval = 50  # Less frequent evaluation to save memory
+eval_interval = 2000  # Less frequent evaluation to save memory
 eval_iters = 50
 log_interval = 10
 
