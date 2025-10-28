@@ -352,7 +352,7 @@ else:
     print_master(f"- Model is not wrapped")
 
 # Training loop
-print_master(f"Starting DeepSpeed training with ZeRO stage {ds_config['zero_optimization']['stage']} (maximum memory efficiency)")
+print_master(f"Starting DeepSpeed training with ZeRO stage {ds_config['zero_optimization']['stage']}")
 X, Y = get_batch('train', data_dir, block_size, batch_size, device_type, device)
 
 t0 = time.time()
