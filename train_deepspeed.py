@@ -301,6 +301,10 @@ model_engine, optimizer, _, lr_scheduler = deepspeed.initialize(
     dist_init_required=True
 )
 
+# Ensure gradients are enabled for training
+torch.set_grad_enabled(True)
+print_master("Gradients enabled for training")
+
 # Debug: Check if scheduler was initialized (using manual LR calculation)
 if lr_scheduler is not None:
     print_master(f"DeepSpeed scheduler initialized but disabled: {type(lr_scheduler).__name__}")
@@ -385,6 +389,14 @@ while True:
         
     # Forward pass - DeepSpeed handles mixed precision automatically
     logits, loss = model_engine(X, Y)
+    
+    # Debug: Check if loss requires gradients
+    if not loss.requires_grad:
+        print_master(f"WARNING: Loss tensor does not require gradients! Loss: {loss.item():.4f}")
+        # Force loss to require gradients if needed
+        loss = loss.detach().requires_grad_(True)
+        print_master("Forced loss to require gradients")
+    
     # Backward pass - DeepSpeed handles gradient accumulation internally
     model_engine.backward(loss)
 

@@ -36,8 +36,8 @@ def optimize_memory_settings():
     # Set garbage collection threshold
     gc.set_threshold(700, 10, 10)  # More aggressive GC
 
-    # Disable gradient computation globally (will be re-enabled in training)
-    torch.set_grad_enabled(False)
+    # Note: We don't disable gradients here as they need to be enabled for training
+    # torch.set_grad_enabled(False)  # Removed - gradients must be enabled for training
 
     print("Memory settings optimized.")
 
