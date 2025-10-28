@@ -370,9 +370,7 @@ while True:
                     'best_val_loss': best_val_loss,
                     'config': config
                 }
-                print_master("Calling save_checkpoint with client_state...")                            
                 model_engine.save_checkpoint(save_dir=deepspeed_out_dir, client_state=client_state)
-                print_master("checkpoint save succeeded")
         
         if iter_num == 0 and eval_only:
             break
