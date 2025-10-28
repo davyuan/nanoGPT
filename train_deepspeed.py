@@ -52,7 +52,7 @@ log_interval = 1
 eval_iters = 50      # Reduced from 200 to make evaluation faster
 eval_only = False # if True, script exits right after the first eval
 always_save_checkpoint = True # if True, always save a checkpoint after each eval
-init_from = 'scratch' # 'scratch' or 'resume' or 'gpt2*'
+init_from = 'resume' # 'scratch' or 'resume' or 'gpt2*'
 # wandb logging
 wandb_log = False # disabled by default
 wandb_project = 'owt'
@@ -234,8 +234,8 @@ best_val_loss = 1e9
 model_args = dict(n_layer=n_layer, n_head=n_head, n_embd=n_embd, block_size=block_size,
                   bias=bias, vocab_size=None, dropout=dropout)
 
-if init_from == 'scratch':
-    print_master("Initializing a new model from scratch")
+if init_from == 'scratch' or init_from == 'resume':
+    print_master("Initializing/resume a new model from configuations")
     try:
         meta_path = os.path.join(data_dir, 'meta.pkl')
         with open(meta_path, 'rb') as f:
@@ -246,31 +246,6 @@ if init_from == 'scratch':
         print_master("defaulting to vocab_size of GPT-2 to 50304 (50257 rounded up for efficiency)")
         meta_vocab_size = 50304
     model_args['vocab_size'] = meta_vocab_size
-    gptconf = GPTConfig(**model_args)
-    model = GPT(gptconf)
-elif init_from == 'resume':
-    print_master(f"Resuming DeepSpeed training from {deepspeed_out_dir}")
-    # For DeepSpeed, we need model structure info to initialize the model
-    # The actual training state (iter_num, best_val_loss) will be loaded from DeepSpeed checkpoint
-    try:
-        # Try to load regular checkpoint for model structure info only
-        ckpt_path = os.path.join(out_dir, 'ckpt.pt')
-        if os.path.exists(ckpt_path):
-            checkpoint = torch.load(ckpt_path, map_location='cpu')
-            checkpoint_model_args = checkpoint['model_args']
-            # Only extract model architecture parameters
-            for k in ['n_layer', 'n_head', 'n_embd', 'block_size', 'bias', 'vocab_size']:
-                model_args[k] = checkpoint_model_args[k]
-            print_master(f"Found model structure info from {ckpt_path}")
-        else:
-            print_master("No regular checkpoint found, using default model structure")
-            meta_vocab_size = 50304  # fallback
-            model_args['vocab_size'] = meta_vocab_size
-    except Exception as e:
-        print_master(f"Could not load checkpoint info: {e}, using defaults")
-        meta_vocab_size = 50304
-        model_args['vocab_size'] = meta_vocab_size
-    
     gptconf = GPTConfig(**model_args)
     model = GPT(gptconf)
 elif init_from.startswith('gpt2'):
@@ -310,11 +285,19 @@ else:
 # Load DeepSpeed checkpoint if resuming
 if init_from == 'resume':
     try:
-        _, client_state = model_engine.load_checkpoint(deepspeed_out_dir)
-        if client_state is not None:
-            iter_num = client_state.get('iter_num', iter_num)
-            best_val_loss = client_state.get('best_val_loss', best_val_loss)
-            print_master(f"Loaded DeepSpeed checkpoint from {deepspeed_out_dir}")
+        # DeepSpeed load_checkpoint returns (load_path, client_state)
+        # Note: Under ZeRO3, cannot load checkpoint right after save_checkpoint()
+        # without reinitializing the engine due to partitioned model state
+        load_path, client_state = model_engine.load_checkpoint(deepspeed_out_dir)
+        if load_path is not None:
+            print_master(f"Successfully loaded DeepSpeed checkpoint from {load_path}")
+            # Restore training state from client_state
+            if client_state is not None:
+                iter_num = client_state.get('iter_num', iter_num)
+                best_val_loss = client_state.get('best_val_loss', best_val_loss)
+                print_master(f"Restored training state: iter_num={iter_num}, best_val_loss={best_val_loss:.4f}")
+            else:
+                print_master("Warning: No client state found in checkpoint, starting from beginning")
         else:
             print_master(f"No DeepSpeed checkpoint found in {deepspeed_out_dir}, starting fresh")
     except Exception as e:
@@ -377,14 +360,14 @@ while True:
         if losses['val'] < best_val_loss or always_save_checkpoint:
             best_val_loss = losses['val']
             if iter_num > 0:
-                # Try saving with client state for better recovery
+                # client_state stores training state and full config (including model architecture)
                 client_state = {
                     'iter_num': iter_num,
                     'best_val_loss': best_val_loss,
-                    'config': config
+                    'config': config  # Full config including model architecture for resume
                 }
                 model_engine.save_checkpoint(save_dir=deepspeed_out_dir, client_state=client_state)
-        
+
         if iter_num == 0 and eval_only:
             break
         
