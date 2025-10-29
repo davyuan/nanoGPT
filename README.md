@@ -3,6 +3,12 @@
 
 ![nanoGPT](assets/nanogpt.jpg)
 
+This is a fork from Andrej Karpathy's nanoGPT repo. My main contribution is to extend it to consumer GPUs with deepspeed. I successfully trained the XL version of nanoGPT on 2 RTX 4090s. For those who don't have access to A100/H100 clusters, you may find this fork useful to play and learn about GPT on your home machine. 
+
+A few tips on using DeepSpeed to train LLMs on consumer GPUs. 
+1. ZeRO stage 2 seems to be a sweet spot. With offloading optimizer and model parameters to CPUs, I can use 2 for the mini batch size and set gradient_accumulation_steps as 8.  
+2. If you want to train even bigger GPT models on 4090, it is possible. You can use Stage 3, which shards the model between GPUs. But since consumer GPUs don't have NVLinks, it will slow down the training significantly.  
+
 The simplest, fastest repository for training/finetuning medium-sized GPTs. It is a rewrite of [minGPT](https://github.com/karpathy/minGPT) that prioritizes teeth over education. Still under active development, but currently the file `train.py` reproduces GPT-2 (124M) on OpenWebText, running on a single 8XA100 40GB node in about 4 days of training. The code itself is plain and readable: `train.py` is a ~300-line boilerplate training loop and `model.py` a ~300-line GPT model definition, which can optionally load the GPT-2 weights from OpenAI. That's it.
 
 ![repro124m](assets/gpt2_124M_loss.png)
@@ -12,7 +18,7 @@ Because the code is so simple, it is very easy to hack to your needs, train new 
 ## install
 
 ```
-pip install torch numpy transformers datasets tiktoken wandb tqdm
+pip install torch numpy transformers datasets tiktoken wandb tqdm deepspeed
 ```
 
 Dependencies:
@@ -24,6 +30,7 @@ Dependencies:
 -  `tiktoken` for OpenAI's fast BPE code <3
 -  `wandb` for optional logging <3
 -  `tqdm` for progress bars <3
+-  `deepspeed` for memory efficient training <3
 
 ## quick start
 
