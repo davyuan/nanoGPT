@@ -5,7 +5,8 @@ This is a fork from Andrej Karpathy's nanoGPT repo. My main contribution is to e
 
 A few tips on using DeepSpeed to train LLMs on consumer GPUs. 
 1. ZeRO stage 2 seems to be a sweet spot. With offloading optimizer and model parameters to CPUs, I can use 2 for the mini batch size and set gradient_accumulation_steps as 8.  
-2. If you want to train even bigger GPT models on 4090, it is possible. You can use Stage 3, which shards the model between GPUs. But since consumer GPUs don't have NVLinks, it will slow down the training significantly.  
+2. If you want to train even bigger GPT models on 4090, it is possible. You can use Stage 3, which shards the model between GPUs. But since consumer GPUs don't have NVLinks, it will slow down the training significantly.
+3. I found the lr_scheduler from DeepSpeed not behaving as expected on a Consine delay schedule, so I'm keeping using the manual scheduler.   
 
 # nanoGPT
 
