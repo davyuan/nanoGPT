@@ -133,6 +133,14 @@ It is a good idea to benchmark your interconnect (e.g. iperf3). In particular, i
 
 Finally, to train on a single GPU simply run the `python train.py` script. Have a look at all of its args, the script tries to be very readable, hackable and transparent. You'll most likely want to tune a number of those variables depending on your needs.
 
+## train the XL nanoGPT with DeepSpeed 
+
+```
+./train_deepspeed.sh config/train_gpt2_xl.py
+```
+
+![This is what will be showing.](assets/Train_With_DeepSpeed.png)
+
 ## baselines
 
 OpenAI GPT-2 checkpoints allow us to get some baselines in place for openwebtext. We can get the numbers as follows:
