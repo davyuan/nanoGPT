@@ -61,7 +61,7 @@ export NCCL_MAX_NRINGS=4            # Maximum rings for optimal performance
 export CUBLAS_WORKSPACE_CONFIG=:16:8
 export NCCL_DEBUG=INFO
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=0
-export NCCL_SOCKET_IFNAME=lo    # pin interface to the correct one
+export NCCL_SOCKET_IFNAME=eno1    # pin interface to the correct one
 
 echo ""
 echo -e "\033[32mRunning DeepSpeed training...\033[0m"
