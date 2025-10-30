@@ -47,15 +47,20 @@ export NCCL_NET_GDR_READ=0          # Disable GPU Direct RDMA reads
 export NCCL_NVLS_ENABLE=0           # Disable NVLS (not available on consumer GPUs)
 export NCCL_ALGO=Ring               # Ring algorithm (stable for most cases)
 export NCCL_PROTO=Simple            # Simple protocol for stability
-export NCCL_DEBUG=WARN              # Reduce debug verbosity
+export NCCL_DEBUG=INFO              # Reduce debug verbosity
+export TORCH_NCCL_DEBUG=INFO
+export NCCL_DEBUG_SUBSYS=ALL
 export NCCL_TIMEOUT=1800            # 30 minute timeout (reasonable for training)
 export TORCH_NCCL_BLOCKING_WAIT=0   # Non-blocking wait for better performance
-export TORCH_DISTRIBUTED_DEBUG=OFF  # Reduce distributed training debug output
+export TORCH_DISTRIBUTED_DEBUG=DETAIL  # Reduce distributed training debug output
+export TORCH_NCCL_TRACE_BUFFER_SIZE=1000000
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128  # Better memory management
 export CUDA_LAUNCH_BLOCKING=0       # Async launches for performance
 export NCCL_MIN_NRINGS=2            # Allow multiple rings for better bandwidth utilization
 export NCCL_MAX_NRINGS=4            # Maximum rings for optimal performance
 export CUBLAS_WORKSPACE_CONFIG=:16:8
+export NCCL_DEBUG=INFO
+export TORCH_NCCL_ASYNC_ERROR_HANDLING=0
 
 echo ""
 echo -e "\033[32mRunning DeepSpeed training...\033[0m"
