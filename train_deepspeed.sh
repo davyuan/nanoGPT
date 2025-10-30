@@ -41,7 +41,7 @@ fi
 # Set environment variables optimized for RTX 4090 stability and performance
 export NCCL_P2P_DISABLE=0           # Enable P2P for RTX 4090 (supports it)
 export NCCL_IB_DISABLE=1            # Disable InfiniBand (not available on consumer GPUs)
-export NCCL_SHM_DISABLE=0           # Enable shared memory transport (beneficial for multi-GPU)
+export NCCL_SHM_DISABLE=1           # Enable shared memory transport (beneficial for multi-GPU)
 export NCCL_NET_GDR_LEVEL=0         # Disable GPU Direct RDMA (not available)
 export NCCL_NET_GDR_READ=0          # Disable GPU Direct RDMA reads
 export NCCL_NVLS_ENABLE=0           # Disable NVLS (not available on consumer GPUs)
@@ -61,6 +61,7 @@ export NCCL_MAX_NRINGS=4            # Maximum rings for optimal performance
 export CUBLAS_WORKSPACE_CONFIG=:16:8
 export NCCL_DEBUG=INFO
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=0
+export NCCL_SOCKET_IFNAME=lo    # pin interface to the correct one
 
 echo ""
 echo -e "\033[32mRunning DeepSpeed training...\033[0m"
