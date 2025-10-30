@@ -41,7 +41,7 @@ fi
 # Set environment variables optimized for RTX 4090 stability and performance
 export NCCL_P2P_DISABLE=0           # Enable P2P for RTX 4090 (supports it)
 export NCCL_IB_DISABLE=1            # Disable InfiniBand (not available on consumer GPUs)
-export NCCL_SHM_DISABLE=1           # Enable shared memory transport (beneficial for multi-GPU)
+export NCCL_SHM_DISABLE=0           # Enable shared memory transport (beneficial for multi-GPU)
 export NCCL_NET_GDR_LEVEL=0         # Disable GPU Direct RDMA (not available)
 export NCCL_NET_GDR_READ=0          # Disable GPU Direct RDMA reads
 export NCCL_NVLS_ENABLE=0           # Disable NVLS (not available on consumer GPUs)
@@ -53,13 +53,12 @@ export TORCH_NCCL_DEBUG=WARN
 export NCCL_TIMEOUT=1800            # 30 minute timeout (reasonable for training)
 export TORCH_NCCL_BLOCKING_WAIT=1   # Non-blocking wait for better performance
 export TORCH_DISTRIBUTED_DEBUG=DETAIL  # Reduce distributed training debug output
-export TORCH_NCCL_TRACE_BUFFER_SIZE=1000000
+export TORCH_FR_BUFFER_SIZE=1000000
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128  # Better memory management
 export CUDA_LAUNCH_BLOCKING=1      # Async launches for performance
 export NCCL_MIN_NRINGS=2            # Allow multiple rings for better bandwidth utilization
 export NCCL_MAX_NRINGS=4            # Maximum rings for optimal performance
 export CUBLAS_WORKSPACE_CONFIG=:16:8
-export NCCL_DEBUG=INFO
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=0
 export NCCL_SOCKET_IFNAME=eno1    # pin interface to the correct one
 
