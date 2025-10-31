@@ -42,5 +42,6 @@
   },
   "wall_clock_breakdown": false,
   "steps_per_print": 10000,
-  "zero_allow_untested_optimizer": true
+  "zero_allow_untested_optimizer": true,
+  "backend": "nccl"   
 }

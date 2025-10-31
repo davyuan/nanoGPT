@@ -39,6 +39,7 @@ else
 fi
 
 # Set environment variables optimized for RTX 4090 stability and performance
+export TORCH_DISTRIBUTED_BACKEND=nccl
 export NCCL_P2P_DISABLE=0           # Enable P2P for RTX 4090 (supports it)
 export NCCL_IB_DISABLE=1            # Disable InfiniBand (not available on consumer GPUs)
 export NCCL_SHM_DISABLE=0           # Enable shared memory transport (beneficial for multi-GPU)
